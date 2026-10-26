@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Newtabber",
+  "version": "1.0.0",
+  "description": "A new tab page with a per-tab title, DuckDuckGo search, a shared to-do list and a bookmark grid.",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "newtabber@fowlerwill",
+      "strict_min_version": "115.0"
+    }
+  },
+  "permissions": ["storage"],
+  "icons": {
+    "48": "icons/newtabber.svg",
+    "96": "icons/newtabber.svg"
+  },
+  "chrome_url_overrides": {
+    "newtab": "newtab.html"
+  }
+}
