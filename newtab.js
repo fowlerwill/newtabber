@@ -761,6 +761,65 @@ enableReorder({
   persist: saveBookmarks,
 });
 
+// --- Backup and restore -----------------------------------------------------
+
+// Keys match the storage keys, so a backup restores whatever shape it holds.
+$("backup").addEventListener("click", () => {
+  const payload = {
+    todos,
+    bookmarks: bookmarkItems,
+    exportedAt: new Date().toISOString(),
+  };
+  const url = URL.createObjectURL(
+    new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }),
+  );
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `newtabber-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+});
+
+$("restore").addEventListener("click", () => $("restore-file").click());
+
+$("restore-file").addEventListener("change", async (event) => {
+  const file = event.target.files[0];
+  event.target.value = ""; // so the same file can be picked again
+  if (!file) return;
+
+  let backup;
+  try {
+    backup = JSON.parse(await file.text());
+  } catch {
+    alert("That file is not valid JSON.");
+    return;
+  }
+
+  const nextTodos = Array.isArray(backup?.todos) ? backup.todos : null;
+  const nextBookmarks = Array.isArray(backup?.bookmarks) ? backup.bookmarks : null;
+  if (!nextTodos && !nextBookmarks) {
+    alert("That file does not look like a Newtabber backup.");
+    return;
+  }
+
+  const replacing = todos.length + bookmarkItems.length;
+  const confirmed = confirm(
+    `Restore ${nextTodos?.length ?? 0} to dos and ${nextBookmarks?.length ?? 0} ` +
+      `bookmark entries?` +
+      (replacing ? ` This replaces the ${replacing} entries already here.` : ""),
+  );
+  if (!confirmed) return;
+
+  if (nextTodos) {
+    todos = nextTodos;
+    await saveTodos();
+  }
+  if (nextBookmarks) {
+    bookmarkItems = nextBookmarks;
+    await saveBookmarks();
+  }
+});
+
 // --- Wiring -----------------------------------------------------------------
 
 for (const button of document.querySelectorAll("[data-close]")) {

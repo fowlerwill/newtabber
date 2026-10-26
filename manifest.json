@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Newtabber",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A new tab page with a per-tab title, DuckDuckGo search, a shared to-do list and a bookmark grid.",
   "browser_specific_settings": {
     "gecko": {
