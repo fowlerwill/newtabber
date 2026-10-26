@@ -1,0 +1,68 @@
+name: Release
+
+# Signs a build and attaches it to a GitHub release whenever main lands with a
+# version that has not shipped yet. Bump "version" in manifest.json to release.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # tags decide whether this version already shipped
+
+      - name: Read version
+        id: version
+        run: |
+          version=$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' manifest.json | head -1)
+          if [[ -z $version ]]; then
+            echo "No \"version\" in manifest.json" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+          if git rev-parse -q --verify "refs/tags/v$version" >/dev/null; then
+            echo "v$version already released — bump the version in manifest.json to ship a new build."
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.version.outputs.release == 'true'
+        with:
+          node-version: 22
+
+      - name: Build and lint
+        if: steps.version.outputs.release == 'true'
+        run: |
+          ./dist.sh
+          mkdir -p "$RUNNER_TEMP/pkg"
+          unzip -q "dist/newtabber-${{ steps.version.outputs.version }}.zip" -d "$RUNNER_TEMP/pkg"
+          npx --yes web-ext lint --source-dir="$RUNNER_TEMP/pkg"
+
+      - name: Sign with AMO
+        if: steps.version.outputs.release == 'true'
+        env:
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: ./dist.sh --sign
+
+      - name: Publish release
+        if: steps.version.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh release create "v$VERSION" dist/*.xpi dist/*.zip \
+            --title "v$VERSION" \
+            --generate-notes
