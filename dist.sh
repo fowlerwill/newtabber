@@ -69,6 +69,21 @@ fi
 : "${AMO_JWT_ISSUER:?dist.sh: set AMO_JWT_ISSUER (addons.mozilla.org/developers/addon/api/key/)}"
 : "${AMO_JWT_SECRET:?dist.sh: set AMO_JWT_SECRET}"
 
+# A pasted credential often picks up a newline or a stray space, and AMO answers
+# that with an opaque "Error decoding signature". Neither value can legitimately
+# contain whitespace, so strip it rather than let the upload fail obscurely.
+AMO_JWT_ISSUER="${AMO_JWT_ISSUER//[[:space:]]/}"
+AMO_JWT_SECRET="${AMO_JWT_SECRET//[[:space:]]/}"
+
+# Shape check only — a warning, not a failure, in case AMO changes the format.
+if [[ ! $AMO_JWT_ISSUER =~ ^user: ]]; then
+  echo "dist.sh: warning — AMO_JWT_ISSUER does not start with \"user:\"; the issuer and" >&2
+  echo "         secret may be the wrong way round." >&2
+fi
+if [[ ! $AMO_JWT_SECRET =~ ^[0-9a-f]{40,}$ ]]; then
+  echo "dist.sh: warning — AMO_JWT_SECRET is not the expected long hex string." >&2
+fi
+
 # Passed by environment rather than --api-key/--api-secret, which would put the
 # secret in the process list.
 WEB_EXT_API_KEY="$AMO_JWT_ISSUER" \
